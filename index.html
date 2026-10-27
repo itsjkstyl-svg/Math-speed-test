@@ -46,7 +46,7 @@ button.selected{background:#e9efff;border-color:#5377df;color:#2046a9}
 <p id="tag" class="muted">Easy practice</p><div id="question" class="question">8 + 4 = ?</div>
 <form id="answerForm"><label for="answer">Your answer</label><input id="answer" autocomplete="off" inputmode="decimal" placeholder="Type answer (fraction: 3/4)" required><button class="primary" style="margin-top:10px">Submit Answer →</button></form>
 <p id="feedback" aria-live="polite">Solve and submit your answer.</p>
-<div class="grid"><button id="skip">Skip question</button><button id="end">End test</button></div>
+<div class="grid"><button id="skip">Skip question</button><button id="end">End test</button><button id="exit">Exit to Home</button></div>
 </section>
 <section class="card hidden" id="result" aria-live="polite">
 <h2>🏁 Test complete</h2><div class="stats">
@@ -115,7 +115,7 @@ function next(){if(active)makeQuestion();}
 function submit(e){e.preventDefault();if(!active||locked)return;let raw=$('answer').value.trim(),v=parse(raw);if(!raw||!Number.isFinite(v)){$('feedback').textContent='Enter a valid number or fraction.';return;}locked=true;total++;let target=parse(String(answer));if(Math.abs(v-target)<0.00011){correct++;$('feedback').textContent='✓ Correct!';}else{wrong++;$('feedback').textContent='Answer: '+answer;}$('score').textContent=correct;setTimeout(next,350);}
 function skip(){if(!active||locked)return;locked=true;total++;wrong++;$('feedback').textContent='Skipped. Answer: '+answer;setTimeout(next,350);}
 function finish(timeout){stop();$('game').classList.add('hidden');$('result').classList.remove('hidden');$('rScore').textContent=correct;$('rAccuracy').textContent=(total?Math.round(correct/total*100):0)+'%';$('rCorrect').textContent=correct;$('rWrong').textContent=wrong;$('summary').textContent=(timeout?'Time is up! ':'Test ended. ')+`Questions: ${total}. Difficulty: ${level}. Mode: ${op==='mixed'?'Mixed':op}.`;$('timer').textContent=fmt(remaining);}
-$('answerForm').addEventListener('submit',submit);$('skip').onclick=skip;$('end').onclick=()=>finish(false);$('start').onclick=start;$('retry').onclick=()=>{$('result').classList.add('hidden');$('setup').classList.remove('hidden');start();};
+$('answerForm').addEventListener('submit',submit);$('skip').onclick=skip;$('end').onclick=()=>finish(false);$('exit').onclick=()=>{if(!active)return;if(confirm('Exit this test and return to the home screen? Your current test progress will be lost.')){stop();$('game').classList.add('hidden');$('result').classList.add('hidden');$('setup').classList.remove('hidden');$('feedback').textContent='Solve and submit your answer.';}};$('start').onclick=start;$('retry').onclick=()=>{$('result').classList.add('hidden');$('setup').classList.remove('hidden');start();};
 })();
 </script>
 </body></html>
