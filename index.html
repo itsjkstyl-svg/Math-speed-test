@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Math Speed Test</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#172033;background:#f4f6fb}
+*{box-sizing:border-box}body{margin:0;padding:18px}.app{max-width:720px;margin:auto}
+header{padding:18px 4px}h1{margin:0;font-size:1.8rem}p{color:#5c667a;margin:.4rem 0}
+.card{background:white;border:1px solid #e0e5ef;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 4px 16px #14213d08}
+label{display:block;font-size:.9rem;font-weight:600;margin:8px 0}
+select,input{width:100%;padding:12px;border:1px solid #cdd5e2;border-radius:10px;background:white;color:#172033;font-size:1rem}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+button{padding:12px;border:1px solid #cdd5e2;border-radius:10px;background:#fff;color:#172033;font-size:.97rem;font-weight:650;cursor:pointer}
+button.selected{background:#e9efff;border-color:#5377df;color:#2046a9}
+.primary{background:#315bd6;color:#fff;border-color:#315bd6;width:100%}
+.full{grid-column:1/-1}.muted{color:#69758b;font-size:.9rem}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.timer{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}.question{font-size:clamp(1.8rem,6vw,2.6rem);font-weight:800;text-align:center;padding:22px 0;overflow-wrap:anywhere}
+.hidden{display:none!important}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stat{background:#f4f6fb;border-radius:12px;padding:12px}.stat strong{display:block;font-size:1.6rem}
+@media(min-width:600px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+</style>
+</head>
+<body><main class="app">
+<header><h1>⚡ Math Speed Test</h1><p>Build speed, accuracy, and confidence with timed practice.</p></header>
+<section class="card" id="setup">
+<div class="top"><strong>1. Choose operation</strong><span class="muted">Practice mode</span></div>
+<div class="grid" id="ops" style="margin-top:10px">
+<button class="selected" data-op="+">➕ Addition</button><button data-op="-">➖ Subtraction</button>
+<button data-op="×">✖️ Multiplication</button><button data-op="÷">➗ Division</button><button class="full" data-op="mixed">🎯 Mixed Test</button>
+</div>
+<label>2. Difficulty</label>
+<div class="grid" id="levels">
+<button class="selected" data-level="Easy">🟢 Easy</button><button data-level="Medium">🟡 Medium</button>
+<button data-level="Hard">🟠 Hard</button><button data-level="Challenge">🔴 Challenge</button>
+<button class="full" data-level="Advanced">🧠 Advanced</button>
+</div>
+<p id="description">Easy: numbers from 1 to 10.</p>
+<div class="grid">
+<label>Timer<select id="duration"><option value="60">1 minute</option><option value="300">5 minutes</option><option value="600">10 minutes</option><option value="900">15 minutes</option></select></label>
+<label>Advanced topic<select id="topic" disabled><option value="all">All topics</option><option value="negative">Negative numbers</option><option value="decimal">Decimals</option><option value="fraction">Fractions</option><option value="bodmas">BODMAS</option></select></label>
+</div>
+<button class="primary" id="start">Start Test</button>
+</section>
+<section class="card hidden" id="game">
+<div class="top"><span class="muted">Question <b id="number">1</b></span><span>Score: <b id="score">0</b></span><span class="timer" id="timer">01:00</span></div>
+<p id="tag" class="muted">Easy practice</p><div id="question" class="question">8 + 4 = ?</div>
+<form id="answerForm"><label for="answer">Your answer</label><input id="answer" autocomplete="off" inputmode="decimal" placeholder="Type answer (fraction: 3/4)" required><button class="primary" style="margin-top:10px">Submit Answer →</button></form>
+<p id="feedback" aria-live="polite">Solve and submit your answer.</p>
+<div class="grid"><button id="skip">Skip question</button><button id="end">End test</button></div>
+</section>
+<section class="card hidden" id="result" aria-live="polite">
+<h2>🏁 Test complete</h2><div class="stats">
+<div class="stat">Score<strong id="rScore">0</strong></div><div class="stat">Accuracy<strong id="rAccuracy">0%</strong></div>
+<div class="stat">Correct<strong id="rCorrect">0</strong></div><div class="stat">Wrong / skipped<strong id="rWrong">0</strong></div></div>
+<p id="summary"></p><button class="primary" id="retry">Try Again ↻</button>
+</section>
+<p class="muted">Each correct answer earns 1 point. Advanced mode includes negative numbers, decimals, fractions and BODMAS. Division answers are exact whole numbers in normal modes.</p>
+</main>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+let op='+',level='Easy',remaining=60,correct=0,wrong=0,total=0,answer=0,active=false,locked=false,clock=null,startedAt=0;
+const descriptions={Easy:'Easy: numbers from 1 to 10.',Medium:'Medium: numbers from 1 to 50.',Hard:'Hard: numbers from 1 to 100.',Challenge:'Challenge: numbers up to 999.',Advanced:'Advanced: negative numbers, decimals, fractions and BODMAS.'};
+const fmt=n=>String(Math.floor(Math.max(0,n)/60)).padStart(2,'0')+':'+String(Math.max(0,n)%60).padStart(2,'0');
+const rand=n=>Math.floor(Math.random()*n)+1;
+const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a);
+function reduced(n,d){let g=gcd(n,d)||1;n/=g;d/=g;if(d<0){n=-n;d=-d}return {n,d};}
+$('ops').querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{if(active)return;op=b.dataset.op;$('ops').querySelectorAll('button').forEach(x=>x.classList.toggle('selected',x===b));});
+$('levels').querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{if(active)return;level=b.dataset.level;$('levels').querySelectorAll('button').forEach(x=>x.classList.toggle('selected',x===b));$('description').textContent=descriptions[level];$('topic').disabled=level!=='Advanced';});
+function display(q,ans,tag){answer=ans;$('question').textContent=q+' = ?';$('tag').textContent=tag;$('number').textContent=total+1;$('score').textContent=correct;$('answer').value='';$('feedback').textContent='Solve and submit your answer.';locked=false;$('answer').focus();}
+function makeQuestion(){
+ let sign=op==='mixed'?['+','-','×','÷'][rand(4)-1]:op;
+ if(level!=='Advanced'){
+  let max={Easy:10,Medium:50,Hard:100,Challenge:999}[level],x,y,ans;
+  if(sign==='+'){x=rand(max);y=rand(max);ans=x+y;}
+  else if(sign==='-'){x=rand(max);y=rand(max);if(y>x)[x,y]=[y,x];ans=x-y;}
+  else if(sign==='×'){x=rand(Math.min(max,99));y=rand(Math.min(max,99));ans=x*y;}
+  else{y=rand(Math.min(max,99));x=rand(Math.min(max,999))*y;ans=x/y;}
+  display(`${x} ${sign} ${y}`,ans,level+' · '+({'+':'Addition','-':'Subtraction','×':'Multiplication','÷':'Division'}[sign]));return;
+ }
+ const selected=$('topic').value,t=selected==='all'?['negative','decimal','fraction','bodmas'][rand(4)-1]:selected;
+ let x,y,q,ans;
+ if(t==='negative'){
+  x=Math.floor(Math.random()*61)-30;y=Math.floor(Math.random()*41)-20;
+  if(sign==='÷'){y=rand(12)*(Math.random()<.5?-1:1);x=rand(12)*y;ans=x/y;}
+  else ans=sign==='+'?x+y:sign==='-'?x-y:x*y;
+  q=`(${x}) ${sign} (${y})`;
+ }else if(t==='decimal'){
+  x=rand(sign==='×'?30:200)/10;y=rand(sign==='×'?20:100)/10;
+  if(sign==='÷')x=rand(40)/10*y;
+  ans=sign==='+'?x+y:sign==='-'?x-y:sign==='×'?x*y:x/y;
+  q=`${x} ${sign} ${y}`;
+ }else if(t==='fraction'){
+  let f1=reduced(rand(12),rand(9)),f2=reduced(rand(12),rand(9));
+  if(sign==='+')ans=reduced(f1.n*f2.d+f2.n*f1.d,f1.d*f2.d);
+  else if(sign==='-')ans=reduced(f1.n*f2.d-f2.n*f1.d,f1.d*f2.d);
+  else if(sign==='×')ans=reduced(f1.n*f2.n,f1.d*f2.d);
+  else ans=reduced(f1.n*f2.d,f1.d*f2.n);
+  q=`${f1.n}/${f1.d} ${sign} ${f2.n}/${f2.d}`;display(q,ans.n+'/'+ans.d,'Advanced · Fractions');return;
+ }else{
+  x=rand(20);y=rand(12);let z=rand(10);
+  const par=Math.random()<.5; q=par?`(${x} + ${y}) × ${z}`:`${x} + ${y} × ${z}`;
+  ans=par?(x+y)*z:x+y*z;display(q,ans,'Advanced · BODMAS');return;
+ }
+ display(q,Number(ans.toFixed(4)),'Advanced · '+({negative:'Negative numbers',decimal:'Decimals'}[t]));
+}
+function start(){
+ stop();correct=wrong=total=0;remaining=Number($('duration').value);startedAt=remaining;
+ $('timer').textContent=fmt(remaining);$('result').classList.add('hidden');$('setup').classList.add('hidden');$('game').classList.remove('hidden');active=true;makeQuestion();
+ clock=setInterval(()=>{if(!active)return;remaining--; $('timer').textContent=fmt(remaining);if(remaining<=0)finish(true);},1000);
+}
+function stop(){if(clock!==null)clearInterval(clock);clock=null;active=false;}
+function parse(v){if(v.includes('/')){let p=v.split('/').map(Number);if(p.length!==2||!Number.isFinite(p[0])||!Number.isFinite(p[1])||p[1]===0)return NaN;return p[0]/p[1];}return Number(v);}
+function next(){if(active)makeQuestion();}
+function submit(e){e.preventDefault();if(!active||locked)return;let raw=$('answer').value.trim(),v=parse(raw);if(!raw||!Number.isFinite(v)){$('feedback').textContent='Enter a valid number or fraction.';return;}locked=true;total++;let target=parse(String(answer));if(Math.abs(v-target)<0.00011){correct++;$('feedback').textContent='✓ Correct!';}else{wrong++;$('feedback').textContent='Answer: '+answer;}$('score').textContent=correct;setTimeout(next,350);}
+function skip(){if(!active||locked)return;locked=true;total++;wrong++;$('feedback').textContent='Skipped. Answer: '+answer;setTimeout(next,350);}
+function finish(timeout){stop();$('game').classList.add('hidden');$('result').classList.remove('hidden');$('rScore').textContent=correct;$('rAccuracy').textContent=(total?Math.round(correct/total*100):0)+'%';$('rCorrect').textContent=correct;$('rWrong').textContent=wrong;$('summary').textContent=(timeout?'Time is up! ':'Test ended. ')+`Questions: ${total}. Difficulty: ${level}. Mode: ${op==='mixed'?'Mixed':op}.`;$('timer').textContent=fmt(remaining);}
+$('answerForm').addEventListener('submit',submit);$('skip').onclick=skip;$('end').onclick=()=>finish(false);$('start').onclick=start;$('retry').onclick=()=>{$('result').classList.add('hidden');$('setup').classList.remove('hidden');start();};
+})();
+</script>
+</body></html>
